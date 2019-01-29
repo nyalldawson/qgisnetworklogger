@@ -186,6 +186,9 @@ class RequestParentItem(ActivityTreeItem):
         self.ssl_errors = errors
         SslErrorsItem(errors, self)
 
+    def set_auth_required(self, realm):
+        RequestDetailsItem('Auth', 'Authentication required for realm {}'.format(realm), self)
+
     def actions(self):
         return [self.open_url_action, self.copy_as_curl_action]
 
@@ -389,6 +392,7 @@ class NetworkActivityModel(QAbstractItemModel):
         nam.requestTimedOut[QgsNetworkRequestParameters].connect(self.request_timed_out)
         nam.downloadProgress.connect(self.download_progress)
         nam.requestEncounteredSslErrors.connect(self.ssl_errors)
+        nam.requestRequiresAuth.connect(self.request_requires_auth)
 
         self.requests_items = {}
         self.request_indices = {}
@@ -430,6 +434,19 @@ class NetworkActivityModel(QAbstractItemModel):
 
         self.beginInsertRows(request_index, len(request_item.children), len(request_item.children))
         request_item.set_ssl_errors(errors)
+        self.endInsertRows()
+
+        self.dataChanged.emit(request_index,request_index)
+
+    def request_requires_auth(self, requestId, realm):
+        if not requestId in self.requests_items:
+            return
+
+        request_index = self.request_indices[requestId]
+        request_item = self.requests_items[requestId]
+
+        self.beginInsertRows(request_index, len(request_item.children), len(request_item.children))
+        request_item.set_auth_required(realm)
         self.endInsertRows()
 
         self.dataChanged.emit(request_index,request_index)
